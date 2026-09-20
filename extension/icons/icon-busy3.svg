@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="shield" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="brain" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fdf2f8"/>
+      <stop offset="1" stop-color="#f9a8d4"/>
+    </linearGradient>
+  </defs>
+  <!-- shield -->
+  <path d="M64 5 L116 23 V62 C116 95 93 116 64 125 C35 116 12 95 12 62 V23 Z"
+        fill="url(#shield)" stroke="#0b1633" stroke-width="7" stroke-linejoin="round"/>
+  <!-- brain -->
+  <path d="M64 100 C55 100 48 96 44 89 C35 89 28 82 28 73 C21 69 21 57 28 52 C26 43 33 34 42 34 C45 25 55 20 64 25
+           C73 20 83 25 86 34 C95 34 102 43 100 52 C107 57 107 69 100 73 C100 82 93 89 84 89 C80 96 73 100 64 100 Z"
+        fill="url(#brain)" stroke="#9d174d" stroke-width="6" stroke-linejoin="round"/>
+  <!-- fissure and gyri -->
+  <path d="M64 27 V99" fill="none" stroke="#be185d" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="100" cy="100" r="25" fill="#facc15" stroke="#0b1633" stroke-width="6"/>
+</svg>

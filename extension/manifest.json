@@ -60,5 +60,9 @@
   "optional_host_permissions": [
     "https://*/*",
     "http://*/*"
-  ]
+  ],
+  "options_ui": {
+    "page": "stats.html",
+    "open_in_tab": true
+  }
 }

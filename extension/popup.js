@@ -17,9 +17,10 @@ function applyLang() {
   for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = P(el.dataset.i18nTitle);
 }
 
-let host = '';
+let host = '', tabId = null;
 try {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  tabId = tab?.id ?? null;
   host = new URL(tab?.url || 'about:blank').hostname.replace(/^www\./, '');
 } catch { /* no tab */ }
 $('host').textContent = host || '';
@@ -61,7 +62,8 @@ $('analyzePage').onclick = async () => {
   setMsg(r?.error ? r.error : P('scanning'), r?.error ? 'err' : 'ok');
   setTimeout(refresh, 1500);
 };
-$('reset').onclick = async () => { await send({ type: 'resetStats' }); refresh(); };
+$('reset').onclick = async () => { await send({ type: 'resetStats', tabId }); refresh(); };
+$('openStats').onclick = () => send({ type: 'openStats' });
 
 /** Remote endpoints need a host permission; ask for it on save (user gesture). */
 async function ensureHostPermission(baseUrl) {
@@ -107,8 +109,7 @@ async function saveSettings(announce) {
 function setMsg(t, cls) { const m = $('msg'); m.textContent = t; m.className = cls || ''; }
 
 async function refresh() {
-  const stats = await send({ type: 'stats' });
-  const s = stats?.hosts?.[host];
+  const s = await send({ type: 'stats', tabId });
   if (!s || !s.posts) {
     $('summary').innerHTML = `<span class="muted">${P('noPosts')}</span><span></span>`;
     $('bars').innerHTML = '';

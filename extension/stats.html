@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cogsec · Statistics</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8; --surface: #ffffff; --ink: #111827; --ink-2: #4b5563; --muted: #6b7280; --line: #e5e7eb; --grid: #eceef1;
+    --series: #2563eb; --series-soft: #dbeafe;
+    --sev0: #0ca30c; --sev1: #fab219; --sev2: #ec835a; --sev3: #d03b3b;   /* status palette: good / warning / serious / critical */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --surface: #171a21; --ink: #e5e7eb; --ink-2: #b5bcc7; --muted: #8b93a1; --line: #262b35; --grid: #1f242d; --series: #60a5fa; --series-soft: #1e3a5f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  h1 { font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+  h1 img { width: 28px; height: 28px; }
+  .sub { color: var(--muted); max-width: 640px; margin: 0; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  select, button { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  button { cursor: pointer; }
+  button.danger { color: var(--sev3); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 16px 0; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .tile .v { font-size: 26px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .s { color: var(--ink-2); font-size: 12px; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 16px; }
+  h2 { font-size: 15px; margin: 0 0 10px; }
+  .chart { width: 100%; height: 220px; display: block; }
+  .chart .grid { stroke: var(--grid); stroke-width: 1; }
+  .chart .axis { fill: var(--muted); font-size: 11px; }
+  .chart .bar { fill: var(--series); }
+  .chart .bar:hover { fill: color-mix(in srgb, var(--series) 70%, var(--ink)); }
+  .chart .lbl { fill: var(--ink-2); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); padding: 20px 0; text-align: center; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.nowrap { white-space: nowrap; }
+  tr.site { cursor: pointer; }
+  tr.site:hover td { background: color-mix(in srgb, var(--series-soft) 40%, transparent); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .chips { color: var(--ink-2); }
+  tr.detail td { background: color-mix(in srgb, var(--bg) 60%, transparent); padding: 12px 16px 16px; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .grp h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 6px; }
+  .brow { display: grid; grid-template-columns: 170px 1fr 40px; gap: 8px; align-items: center; font-size: 12px; margin: 3px 0; }
+  .brow i { display: block; height: 8px; border-radius: 4px; background: var(--series); }
+  .brow span:last-child { text-align: right; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .msg { color: var(--muted); font-size: 12px; margin-left: 6px; }
+  @media (max-width: 720px) { .hide-sm { display: none; } .brow { grid-template-columns: 120px 1fr 36px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1><img src="icons/icon48.png" alt=""><span data-i18n="title">cogsec · Statistics</span></h1>
+      <p class="sub" data-i18n="subtitle"></p>
+    </div>
+    <div class="controls">
+      <select id="range"></select>
+      <select id="site"></select>
+      <select id="lang"></select>
+      <button id="export" data-i18n="export">Export JSON</button>
+      <button id="clear" class="danger" data-i18n="clear">Clear history</button>
+      <span class="msg" id="msg"></span>
+    </div>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2 data-i18n="chartTitle">Share of manipulative posts per day</h2>
+    <svg class="chart" id="chart" role="img"></svg>
+  </section>
+
+  <section>
+    <table id="table"><thead><tr>
+      <th data-i18n="colSite">Site</th><th class="num" data-i18n="colPosts">Posts</th><th class="num" data-i18n="colFlagged">Manipulative</th>
+      <th class="num hide-sm" data-i18n="colPressure">Pressure</th><th data-i18n="colSeverity">Severity</th><th class="hide-sm" data-i18n="colTop">Top intents</th><th class="hide-sm" data-i18n="colLast">Last seen</th>
+    </tr></thead><tbody></tbody></table>
+    <div class="empty" id="empty" hidden></div>
+  </section>
+</div>
+<script src="i18n.js"></script>
+<script type="module" src="stats.js"></script>
+</body>
+</html>

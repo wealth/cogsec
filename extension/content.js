@@ -319,11 +319,12 @@
     .foot { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--b); opacity: .7; display: flex; gap: 12px; flex-wrap: wrap; }
     @media (prefers-color-scheme: dark) { :host { color: #eee; } .chip { background: rgba(255,255,255,.1); } }
   `;
+  // Status palette (good / warning / serious / critical), validated for CVD separation; always paired with a label.
   const THEMES = [
-    { c: '#2e9e5b', bg: 'rgba(46,158,91,.08)', b: 'rgba(46,158,91,.35)' },
-    { c: '#c9a227', bg: 'rgba(201,162,39,.10)', b: 'rgba(201,162,39,.4)' },
-    { c: '#e07b21', bg: 'rgba(224,123,33,.10)', b: 'rgba(224,123,33,.45)' },
-    { c: '#d8342c', bg: 'rgba(216,52,44,.10)', b: 'rgba(216,52,44,.5)' },
+    { c: '#0ca30c', bg: 'rgba(12,163,12,.08)', b: 'rgba(12,163,12,.35)' },
+    { c: '#b7810f', bg: 'rgba(250,178,25,.12)', b: 'rgba(250,178,25,.55)' },   // text uses a darker step of warning for contrast
+    { c: '#c4552e', bg: 'rgba(236,131,90,.12)', b: 'rgba(236,131,90,.55)' },   // darker step of serious
+    { c: '#d03b3b', bg: 'rgba(208,59,59,.10)', b: 'rgba(208,59,59,.5)' },
   ];
   const pct = (p) => `${Math.round(p * 100)}%`;
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));

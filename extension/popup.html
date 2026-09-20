@@ -23,7 +23,7 @@
   .bars span { text-align: right; opacity: .7; font-variant-numeric: tabular-nums; }
   .muted { opacity: .6; font-size: 12px; }
   #msg { font-size: 12px; margin-top: 6px; min-height: 14px; }
-  .ok { color: #2e9e5b; } .err { color: #d8342c; }
+  .ok { color: #0ca30c; } .err { color: #d03b3b; }
   code { font-size: 11px; }
   .preset { font-size: 11px; padding: 3px 6px; }
 </style>
@@ -34,11 +34,12 @@
   <div class="row">
     <button id="analyzePage" class="primary" data-i18n="analyze">Analyze this page</button>
     <button id="reset" data-i18n="reset">Reset stats</button>
+    <button id="openStats" data-i18n="statsPage" title="Long-term statistics per site">Statistics</button>
   </div>
   <div class="muted" style="margin-top:6px" data-i18n="autoNote">Auto-runs on X, Bluesky, Reddit, Threads, Hacker News, 4chan and 2ch. Any other page: click Analyze.</div>
 
   <section id="statsSec">
-    <label data-i18n="session">This site, this session</label>
+    <label data-i18n="session">This tab, this session</label>
     <div class="stat" id="summary"></div>
     <div class="bars" id="bars" style="margin-top:8px"></div>
   </section>

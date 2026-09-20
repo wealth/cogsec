@@ -3,7 +3,10 @@
 A Chrome extension that lists, for every post in your feed, what the post is trying to make you **feel**, **believe**, or **do**.
 Each post gets a small bar under it: an overall rating (Clean / Mild / Manipulative / Heavy), the main intent, the
 detected intents with probabilities, a "reflex" score (how hard the post leans on your System 1), and whether it gives you
-anything checkable. Click the bar for the full breakdown. The popup shows what your feed as a whole is doing to you.
+anything checkable. Click the bar for the full breakdown. The popup shows what your feed as a whole is doing to you, and
+the toolbar icon carries a per-tab badge: the share of posts rated Manipulative or Heavy, green below 15%, yellow below
+35%, orange below 60%, red above (status colours always paired with a label). While posts from a tab are queued or waiting on the model, the icon pulses a yellow
+dot and the tooltip shows how many are in flight.
 
 Classification runs through any OpenAI-compatible chat endpoint: a **local** model via LM Studio, Ollama or llama.cpp
 (nothing leaves your machine), or a **hosted** API such as Cerebras, Groq, OpenAI or OpenRouter with your API key.
@@ -76,6 +79,12 @@ Auto-runs on X/Twitter, Bluesky, Reddit, Threads, Hacker News, 4chan (threads an
 mirrors (2ch.hk, 2ch.org, 2ch.life, 2ch.pm, 2ch.su). On any other page, click **Analyze this page** in the popup; a
 generic adapter picks up article-like blocks of text.
 
+**Long-term statistics.** The **Statistics** button in the popup (also the extension's options page) opens a dashboard
+of everything cogsec has rated: posts analysed, share manipulative, average System 1 pressure, per site and per day,
+with an intent breakdown per site, a range switch (7 / 30 / 90 days / all time), JSON export and a clear button. Each
+post counts once per site per day; history is kept for 90 days in the extension's local storage and never leaves the
+browser. The per-tab counter in the popup and the toolbar badge are separate and reset when the tab closes.
+
 **Language.** The popup has a language switch (English, Русский). It localises the badge, the intent names and hints,
 the levels and the popup itself; strings live in `extension/i18n.js`, one dictionary per language, so adding another is
 a matter of one more entry. The model is told posts may be in any language and rates them the same way; the two Russian
@@ -127,8 +136,9 @@ content.js (site adapter) --posts--> background.js --> provider.js --> <base url
   ratings per intent. First attempt is a free reply (the model writes compact JSON on its own; accepted only if it
   validates as a rating), second enforces a strict JSON schema. Remembers per endpoint which request fields it rejects.
   Ordinals map to probabilities for `summarize`.
-- `extension/background.js`: queue (one request at a time for local servers, four for hosted), cache, per-site session stats.
+- `extension/background.js`: queue (one request at a time for local servers, four for hosted), verdict cache, per-tab stats. Both live in `chrome.storage.session`, so they survive Chrome suspending the worker and last until the tab closes (stats) or the browser closes (cache).
 - `extension/content.js`: site adapters (X, Bluesky, Reddit, HN, Threads, 4chan, 2ch, Mastodon, generic), MutationObserver, shadow-DOM badges, optional image fetch + downscale.
+- `extension/history.js`: long-term exposure history (per site, per day; pure functions), `extension/stats.*`: the dashboard page.
 - `extension/i18n.js`: UI strings per language (English, Russian).
 - `extension/popup.*`, `extension/settings.js`: endpoint, key and model settings (with host-permission request for hosted URLs), test button, intent tally.
 - `scripts/qwen-thinking-off.py`: flips a Qwen chat template to thinking-off by default (for LM Studio's MLX engine).
