@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "cogsec",
+  "version": "0.1.0",
+  "description": "Lists what each post in your feed is trying to make you feel, believe, or do. Runs on any OpenAI-compatible model endpoint, local (LM Studio, Ollama, llama.cpp) or hosted.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*",
+        "https://bsky.app/*",
+        "https://www.reddit.com/*",
+        "https://news.ycombinator.com/*",
+        "https://www.threads.net/*",
+        "https://www.threads.com/*",
+        "https://boards.4chan.org/*",
+        "https://boards.4channel.org/*",
+        "https://2ch.hk/*",
+        "https://2ch.org/*",
+        "https://2ch.life/*",
+        "https://2ch.pm/*",
+        "https://2ch.su/*"
+      ],
+      "js": [
+        "i18n.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "cogsec",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ]
+}
