@@ -186,3 +186,7 @@ meme attached. Test from the CLI with `--image meme.jpg`.
 - Reply context: send the parent post along with a reply.
 - Per-account profile: what does this account do to you over 100 posts?
 - Hide instead of dim, per intent ("never show me curiosity-gap threads").
+
+## License
+
+MIT. See `LICENSE`.
