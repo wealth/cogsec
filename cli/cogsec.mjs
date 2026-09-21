@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// cogsec CLI: run the taxonomy against posts from the terminal, through any OpenAI-compatible endpoint.
+// cogsec CLI: run the taxonomy against posts from the terminal, through any OpenAI-compatible endpoint
+// or through Jev (--url https://api.typesafe.ai/v1 --key ..., model defaults to jev-latest).
 //   node cli/cogsec.mjs "post text"            analyze one post
 //   node cli/cogsec.mjs --file posts.txt        one post per line, or a JSON array of strings / {author,text} objects
 //   node cli/cogsec.mjs --fixtures              run the bundled sample posts
@@ -7,11 +8,11 @@
 //          --image <file>  attach an image to every post (repeatable; vision models only)
 //          --lang ru       print intent names and levels in Russian
 //          --dry (print the request instead of calling)   --json (raw answers)
-// env: COGSEC_BASE_URL, COGSEC_MODEL, COGSEC_API_KEY, COGSEC_LANG
+// env: COGSEC_BASE_URL, COGSEC_MODEL, COGSEC_API_KEY (TYPESAFE_API_KEY for Jev), COGSEC_LANG
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { ask, buildRequest, DEFAULT_BASE_URL } from '../extension/provider.js';
+import { ask, previewRequest, isSystemOne, PRESETS, DEFAULT_BASE_URL } from '../extension/provider.js';
 import { summarize } from '../extension/taxonomy.js';
 import '../extension/i18n.js';
 
@@ -31,7 +32,8 @@ const B = L.badge || I18N.en.badge;
 const threshold = Number(opt('--threshold', 0.6));
 const baseUrl = opt('--url', process.env.COGSEC_BASE_URL || DEFAULT_BASE_URL);
 const model = opt('--model', process.env.COGSEC_MODEL || '');
-const apiKey = opt('--key', process.env.COGSEC_API_KEY || '');
+const apiKey = opt('--key', process.env.COGSEC_API_KEY || (isSystemOne(baseUrl) ? process.env.TYPESAFE_API_KEY : '') || '');
+const defaultModelNote = isSystemOne(baseUrl) ? PRESETS.jev.model : '(first loaded model)';
 const MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif' };
 const images = args.flatMap((a, i) => (a === '--image' && args[i + 1] ? [args[i + 1]] : [])).map((f) => {
   const ext = f.split('.').pop().toLowerCase();
@@ -50,7 +52,7 @@ else if (opt('--file')) {
 }
 posts = posts.map((p) => (typeof p === 'string' ? { text: p } : p));
 
-if (!flag('--dry') && !flag('--json')) console.error(`\x1b[2m${baseUrl} · ${model || '(first loaded model)'}${apiKey ? ' · key set' : ''}\x1b[0m`);
+if (!flag('--dry') && !flag('--json')) console.error(`\x1b[2m${baseUrl} · ${model || defaultModelNote}${apiKey ? ' · key set' : ''}\x1b[0m`);
 
 const bar = (p) => '█'.repeat(Math.round(p * 20)).padEnd(20, '·');
 const C = { 0: '\x1b[32m', 1: '\x1b[33m', 2: '\x1b[38;5;208m', 3: '\x1b[31m' };
@@ -60,12 +62,12 @@ let totalTokens = 0;
 for (const post of posts) {
   const { expect, ...rest } = post;
   const state = { platform: post.platform || 'cli', post: { ...rest, ...(images.length ? { images_attached: images.length } : {}) } };
-  if (flag('--dry')) { console.log(JSON.stringify(buildRequest(state, model || '<model>', { images: images.map((u) => u.slice(0, 40) + '…') }), null, 2)); continue; }
+  if (flag('--dry')) { console.log(JSON.stringify(previewRequest({ baseUrl, state, model, images: images.map((u) => u.slice(0, 40) + '…') }), null, 2)); continue; }
   const t0 = Date.now();
   let res;
   try {
     res = await ask({ baseUrl, model, apiKey, state, images });
-  } catch (e) { console.error(`${C[3]}error${R} ${e.message}`); if (/Cannot reach|rejected the API key/.test(e.message)) process.exit(1); continue; }
+  } catch (e) { console.error(`${C[3]}error${R} ${e.message}`); if (/Cannot reach|rejected the API key|needs an API key/.test(e.message)) process.exit(1); continue; }
   const ms = Date.now() - t0;
   totalTokens += res.usage?.input_tokens || 0;
   const v = summarize(res.answers, threshold);

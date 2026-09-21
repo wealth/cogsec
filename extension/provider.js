@@ -1,16 +1,21 @@
-// OpenAI-compatible chat provider: local servers (LM Studio, Ollama, llama.cpp) or hosted APIs
-// (Cerebras, Groq, OpenAI, OpenRouter, ...) with an optional API key. Produces the `answers` shape
-// consumed by `summarize()` in taxonomy.js.
+// Provider front door, and the OpenAI-compatible chat client behind it: local servers (LM Studio,
+// Ollama, llama.cpp) or hosted APIs (Cerebras, Groq, OpenAI, OpenRouter, ...) with an optional API key.
+// Endpoints that speak TypeSafe's System One protocol instead (Jev) are routed to jev.js. Either way
+// the result is the `answers` shape consumed by `summarize()` in taxonomy.js.
 //
-// A model is asked for one JSON object per post: each intent rated 0–3, a primary intent, System 1
+// A chat model is asked for one JSON object per post: each intent rated 0–3, a primary intent, System 1
 // pressure 0–4, and evidence 0–3. Ordinal ratings are far more stable from small models than raw
-// probabilities; they are mapped to probabilities below.
+// probabilities; they are mapped to probabilities below. Jev answers the same questions natively.
 import { INTENTS, FRAME, PRESSURE_LEVELS, PRIMARY_NONE } from './taxonomy.js';
+import { ProviderError } from './errors.js';
+import * as jev from './jev.js';
+export { ProviderError };
 
 export const PRESETS = {
   lmstudio: { label: 'LM Studio', url: 'http://localhost:1234/v1', local: true },
   ollama: { label: 'Ollama', url: 'http://localhost:11434/v1', local: true },
   llamacpp: { label: 'llama.cpp', url: 'http://localhost:8080/v1', local: true },
+  jev: { label: 'Jev (TypeSafe)', url: jev.BASE_URL, model: jev.DEFAULT_MODEL, kind: 'systemone' },
   cerebras: { label: 'Cerebras', url: 'https://api.cerebras.ai/v1' },
   groq: { label: 'Groq', url: 'https://api.groq.com/openai/v1' },
   openai: { label: 'OpenAI', url: 'https://api.openai.com/v1' },
@@ -20,14 +25,27 @@ export const DEFAULT_BASE_URL = PRESETS.lmstudio.url;
 
 const ORDINAL_TO_P = [0.05, 0.35, 0.65, 0.93]; // 0 absent, 1 weak hint, 2 clearly present, 3 blatant
 
-export class ProviderError extends Error {
-  constructor(message, { status = 0, retryable = false, body } = {}) {
-    super(message); this.name = 'ProviderError'; this.status = status; this.retryable = retryable; this.body = body;
-  }
-}
-
 export function isLocalUrl(u) {
   try { const h = new URL(u).hostname; return h === 'localhost' || h === '127.0.0.1' || h === '::1' || h.endsWith('.local'); } catch { return false; }
+}
+
+// Preset hosts by protocol, so the table above stays the only place a provider is declared.
+const KIND_BY_HOST = new Map(Object.values(PRESETS).map((p) => { try { return [new URL(p.url).hostname, p.kind || 'openai']; } catch { return ['', 'openai']; } }));
+
+/** Which protocol an endpoint speaks: 'systemone' (Jev, typed questions) or 'openai' (chat completions). */
+export function providerKind(u) {
+  try {
+    const { hostname, pathname } = new URL(u);
+    return /\/systemone\/?$/.test(pathname) ? 'systemone' : KIND_BY_HOST.get(hostname) || 'openai';
+  } catch { return 'openai'; }   // not a URL: the OpenAI client reports it
+}
+export const isSystemOne = (u) => providerKind(u) === 'systemone';
+
+/** The exact body that would be sent for `state`, whichever protocol the endpoint speaks (CLI --dry). */
+export function previewRequest({ baseUrl = DEFAULT_BASE_URL, state, model, images = [] } = {}) {
+  return isSystemOne(baseUrl)
+    ? jev.buildRequest(state, model || jev.DEFAULT_MODEL)
+    : buildRequest(state, model || '<model>', { images });
 }
 
 export function buildSystemPrompt() {
@@ -108,6 +126,7 @@ export function toAnswers(r) {
 
 /** List model ids from the server (GET /models). */
 export async function listModels({ baseUrl = DEFAULT_BASE_URL, apiKey, fetchImpl = globalThis.fetch } = {}) {
+  if (isSystemOne(baseUrl)) return jev.listModels({ baseUrl, apiKey, fetchImpl });
   const res = await fetchImpl(`${trim(baseUrl)}/models`, { headers: headers(apiKey) }).catch((e) => { throw new ProviderError(`Cannot reach ${baseUrl}: ${e?.message || e}`); });
   if (res.status === 401 || res.status === 403) throw new ProviderError(`${baseUrl} rejected the API key (HTTP ${res.status})`, { status: res.status });
   if (!res.ok) throw new ProviderError(`${baseUrl}/models returned HTTP ${res.status}`, { status: res.status });
@@ -120,6 +139,7 @@ export async function listModels({ baseUrl = DEFAULT_BASE_URL, apiKey, fetchImpl
  * reports `state`; Ollama's /api/ps lists running models). Falls back to the first id from /models.
  */
 export async function pickLoadedModel({ baseUrl = DEFAULT_BASE_URL, apiKey, fetchImpl = globalThis.fetch } = {}) {
+  if (isSystemOne(baseUrl)) return jev.DEFAULT_MODEL;
   const root = trim(baseUrl).replace(/\/v1$/, '');
   if (isLocalUrl(baseUrl)) {
     try {
@@ -153,6 +173,7 @@ export const _capsForTests = caps;
  * endpoint; a 400 on a schema request marks schemas unsupported there. A 400 on a bare request is a real error.
  */
 export async function ask({ baseUrl = DEFAULT_BASE_URL, model, state, images = [], apiKey, fetchImpl = globalThis.fetch, signal } = {}) {
+  if (isSystemOne(baseUrl)) return jev.ask({ baseUrl, model, state, apiKey, fetchImpl, signal });   // typed questions, text only
   if (!model) model = await pickLoadedModel({ baseUrl, apiKey, fetchImpl });
   const cap = capsFor(baseUrl);
   const plan = [{ useSchema: false }, { useSchema: true }];

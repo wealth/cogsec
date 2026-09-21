@@ -45,7 +45,7 @@
   </section>
 
   <section>
-    <label><span data-i18n="endpoint">Model endpoint</span> <span class="muted" data-i18n="endpointNote">(OpenAI-compatible)</span></label>
+    <label><span data-i18n="endpoint">Model endpoint</span> <span class="muted" data-i18n="endpointNote">(OpenAI-compatible or Jev)</span></label>
     <input id="baseUrl" type="text" placeholder="http://localhost:1234/v1">
     <div class="row" style="margin-top:4px;flex-wrap:wrap" id="presets"></div>
     <label style="margin-top:8px"><span data-i18n="apiKey">API key</span> <span class="muted" data-i18n="apiKeyNote">(optional; hosted APIs need one)</span></label>
@@ -56,7 +56,7 @@
       <datalist id="models"></datalist>
       <button id="refreshModels" style="flex:0 0 auto" title="Fetch model list from the endpoint" data-i18n-title="refreshTitle">↻</button>
     </div>
-    <div class="muted" style="margin-top:4px" data-i18n="endpointHelp">Local: LM Studio → Developer → Start server, CORS on (or lms server start --cors). Hosted: pick a preset, paste a key, type a model id. Saving a hosted URL asks for permission to contact that site.</div>
+    <div class="muted" style="margin-top:4px" data-i18n="endpointHelp">Local: LM Studio → Developer → Start server, CORS on (or lms server start --cors). Hosted: pick a preset, paste a key, type a model id. Jev (TypeSafe) answers the taxonomy natively and needs a key from console.typesafe.ai. Saving a hosted URL asks for permission to contact that site.</div>
 
     <div class="row" style="margin-top:8px">
       <button id="save" class="primary" data-i18n="save">Save</button>
@@ -71,7 +71,7 @@
       <div><label data-i18n="language">Language</label><select id="lang"></select></div>
     </div>
     <label class="toggle"><input type="checkbox" id="sendImages"> <span data-i18n="sendImages">Send post images to the model</span></label>
-    <div class="muted" style="margin-left:22px;margin-top:-4px" data-i18n="imagesNote">Vision models only (e.g. Qwen 3.5). Up to 2 images per post, downscaled to 512 px. Adds about a second per image. Images go wherever your endpoint is: keep a local model if that matters.</div>
+    <div class="muted" id="imagesNote" style="margin-left:22px;margin-top:-4px" data-i18n="imagesNote">Vision models only (e.g. Qwen 3.5). Up to 2 images per post, downscaled to 512 px. Adds about a second per image. Images go wherever your endpoint is: keep a local model if that matters.</div>
     <label class="toggle"><input type="checkbox" id="dimHeavy"> <span data-i18n="dimHeavy">Dim posts rated Heavy</span></label>
     <label class="toggle"><input type="checkbox" id="paused"> <span data-i18n="paused">Pause analysis</span></label>
   </section>

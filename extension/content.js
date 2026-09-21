@@ -200,7 +200,10 @@
   const adapter = ADAPTERS.find((a) => { try { return a.match(); } catch { return false; } });
 
   // ------------------------------------------------------------------ image option
-  const imgCfg = { sendImages: false, maxImages: 2, imageMaxSide: 512, lang: 'en' };
+  // baseUrl only to know whether the endpoint can take images at all: Jev is text only
+  // (providerKind in provider.js; this is a classic script and cannot import it).
+  const TEXT_ONLY_ENDPOINT = /(^|\/\/)api\.typesafe\.ai|\/systemone\/?$/;
+  const imgCfg = { sendImages: false, maxImages: 2, imageMaxSide: 512, lang: 'en', baseUrl: '' };
   chrome.storage.local.get(imgCfg).then((v) => Object.assign(imgCfg, v)).catch(() => {});
   chrome.storage.onChanged.addListener((ch) => {
     for (const k of Object.keys(imgCfg)) if (ch[k]) imgCfg[k] = ch[k].newValue;
@@ -258,7 +261,7 @@
       try { data = adapter.extract(el); } catch { continue; }
       const body = [data.title, data.text, data.quoted?.text].filter(Boolean).join('\n');
       let imageUrls = [];
-      if (imgCfg.sendImages && adapter.images) {
+      if (imgCfg.sendImages && adapter.images && !TEXT_ONLY_ENDPOINT.test(imgCfg.baseUrl)) {
         try { const seen = new Set(); imageUrls = adapter.images(el).filter((u) => u && !seen.has(String(u)) && seen.add(String(u))).slice(0, imgCfg.maxImages); } catch { imageUrls = []; }
       }
       if (body.length < 12 && !imageUrls.length) continue;

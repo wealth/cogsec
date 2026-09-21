@@ -10,6 +10,8 @@ dot and the tooltip shows how many are in flight.
 
 Classification runs through any OpenAI-compatible chat endpoint: a **local** model via LM Studio, Ollama or llama.cpp
 (nothing leaves your machine), or a **hosted** API such as Cerebras, Groq, OpenAI or OpenRouter with your API key.
+It also speaks **Jev**, TypeSafe's System One model, which answers typed questions instead of writing text: the whole
+taxonomy goes over the wire as 25 questions and comes back as calibrated probabilities, no prompt and no JSON to repair.
 
 ## The taxonomy
 
@@ -69,6 +71,15 @@ then leaves your machine for that provider. Requests carry `reasoning_effort` an
 thinking models; an endpoint that rejects them with HTTP 400 gets them switched off automatically and remembered,
 same for `response_format: json_schema`. Untested here beyond mocked responses; no key was available.
 
+**Hosted, Jev (TypeSafe)**: pick the **Jev (TypeSafe)** preset (`https://api.typesafe.ai/v1`), paste a key from
+[console.typesafe.ai](https://console.typesafe.ai) into the API key field, leave the model at `jev-latest`. Jev is a
+System One model: you send a `state` and a map of typed questions, and each comes back as a typed answer — a
+yes-probability (noul) per intent, a choice for the main intent, a score for System 1 pressure. That is exactly the
+shape `summarize()` already consumes, so there is no prompt, no JSON to fish out of a reply and no 0–3 ordinals to
+map: `jev.js` hands the taxonomy over as it stands. All 25 questions ride in one request and are evaluated against
+the post in parallel, about 7.6k input tokens (~$0.0003 at $0.042 / Mtok; output is free). Text only, so images are
+skipped for this endpoint.
+
 ### 2. Extension
 
 1. Chrome → `chrome://extensions` → enable Developer mode → **Load unpacked** → pick the `extension/` folder.
@@ -99,11 +110,12 @@ node cli/cogsec.mjs "Retweet if you agree!"                 # one post
 node cli/cogsec.mjs --file posts.txt                        # one post per line, or a JSON array
 node cli/cogsec.mjs --fixtures --model gigachat3.1-10b-a1.8b   # try another loaded model
 node cli/cogsec.mjs --fixtures --url https://api.cerebras.ai/v1 --key $CEREBRAS_API_KEY --model llama-3.3-70b
+node cli/cogsec.mjs --fixtures --url https://api.typesafe.ai/v1 --key $TYPESAFE_API_KEY   # Jev; model defaults to jev-latest
 node cli/cogsec.mjs "text" --image meme.jpg                 # attach an image (vision models)
 node cli/cogsec.mjs "text" --dry                            # print the exact request, no call
 ```
 
-Flags: `--url`, `--model`, `--key`, `--threshold`, `--image`, `--lang`, `--json`, `--dry`. Env: `COGSEC_BASE_URL`, `COGSEC_MODEL`, `COGSEC_API_KEY`, `COGSEC_LANG`.
+Flags: `--url`, `--model`, `--key`, `--threshold`, `--image`, `--lang`, `--json`, `--dry`. Env: `COGSEC_BASE_URL`, `COGSEC_MODEL`, `COGSEC_API_KEY` (`TYPESAFE_API_KEY` is picked up for Jev), `COGSEC_LANG`.
 
 Use the fixtures loop to tune the taxonomy: change a rubric, rerun, compare against `expect`.
 
@@ -114,28 +126,37 @@ Use the fixtures loop to tune the taxonomy: change a rubric, rerun, compare agai
 | qwen3.5-9b-mlx 4-bit, 6 GB (MLX engine, template patched) | ~2.5 s (22-intent prompt) | 22/22 headline verdicts: 6 controls Clean with no intents flagged, 16 manipulative posts Heavy with the expected main intent |
 | qwen/qwen3.5-9b GGUF, 10.5 GB (llama.cpp engine, reasoning off) | ~3.3 s | 14/14 on the original 16-intent set; not re-run on the 22-intent set |
 | gigachat3.1-10b-a1.8b (MoE, 1.8B active) | ~2.4 s | 10/14; flags first-hand and reasoned posts as "unverifiable authority" |
+| jev-1.13.0 (hosted, not local: TypeSafe) | ~0.42 s, 7.6k input tokens (~$0.0003) | 24/24 headline verdicts; 7/7 controls Clean with no intent above 60%; main intent inside the expected set on 16 of 17 manipulative posts |
 
 Secondary intents are the noisy part with a 4-bit 9B model: a Heavy post typically lists 3–5 intents at 65% (rating
 "clearly present") next to 1–3 at 93%. The badge shows the top five chips; set "Show intent at ≥ 70%" in the popup to
 see only the 93% ones. Rubric edits in `taxonomy.js` moved results reliably; rewording the strictness instruction in
 the local prompt did not (two attempts made the model noisier and produced false positives on control posts).
+Jev spreads the secondaries out instead (98 / 94 / 76 / 61 %…) and leaves the controls completely empty, which is
+what a calibrated per-intent probability buys you; the whole fixture run cost 184k input tokens, under a cent.
 
 Per-post time is dominated by generating the ~100-token JSON answer, not by the ~2k-token prompt. The MLX build is
-now the faster one and uses 4 GB less memory.
+now the faster one and uses 4 GB less memory. Jev inverts the shape: a 7.6k-token request, no text generated at all,
+~0.42 s per post.
 
 ## How it works
 
 ```
 content.js (site adapter) --posts--> background.js --> provider.js --> <base url>/chat/completions
-        ^                                |                             (LM Studio, Ollama, llama.cpp, Cerebras, Groq, OpenAI, ...)
+        ^                                |                   |          (LM Studio, Ollama, llama.cpp, Cerebras, Groq, OpenAI, ...)
+        |                                |                   +-------> jev.js --> api.typesafe.ai/v1/systemone
         +-------- verdicts + render -----+   cache by content hash, queue, capability memo per endpoint
 ```
 
 - `extension/taxonomy.js`: intents, rubrics, and the verdict logic (`summarize`).
-- `extension/provider.js`: the OpenAI-compatible client. Builds one system prompt from the taxonomy and asks for 0–3
-  ratings per intent. First attempt is a free reply (the model writes compact JSON on its own; accepted only if it
-  validates as a rating), second enforces a strict JSON schema. Remembers per endpoint which request fields it rejects.
-  Ordinals map to probabilities for `summarize`.
+- `extension/provider.js`: the front door (`ask`, `listModels`, presets) and the OpenAI-compatible client. Builds one
+  system prompt from the taxonomy and asks for 0–3 ratings per intent. First attempt is a free reply (the model writes
+  compact JSON on its own; accepted only if it validates as a rating), second enforces a strict JSON schema. Remembers
+  per endpoint which request fields it rejects. Ordinals map to probabilities for `summarize`. A TypeSafe endpoint
+  (`api.typesafe.ai`, or any URL ending in `/systemone`) is routed to `jev.js` instead.
+- `extension/jev.js`: the System One client. Turns the taxonomy into Jev's `questions` map — each rubric becomes a
+  question's `criteria`, the pressure levels become a score's levels — and returns the `answers` map untouched,
+  because it is already what `summarize` reads. `extension/errors.js` holds the `ProviderError` both clients throw.
 - `extension/background.js`: queue (one request at a time for local servers, four for hosted), verdict cache, per-tab stats. Both live in `chrome.storage.session`, so they survive Chrome suspending the worker and last until the tab closes (stats) or the browser closes (cache).
 - `extension/content.js`: site adapters (X, Bluesky, Reddit, HN, Threads, 4chan, 2ch, Mastodon, generic), MutationObserver, shadow-DOM badges, optional image fetch + downscale.
 - `extension/history.js`: long-term exposure history (per site, per day; pure functions), `extension/stats.*`: the dashboard page.
@@ -152,7 +173,8 @@ The content script fetches each image from the page, downscales it to 512 px JPE
 to two per post as `image_url` parts. Needs a vision-capable model (Qwen 3.5 is one). Adds about a second per image.
 Measured effect on the 9B MLX model: a bland "look at this" caption is Clean on its own and
 Heavy (hidden hand, fear, urgency, engagement) with a "they don't want you to see this, share before it's deleted"
-meme attached. Test from the CLI with `--image meme.jpg`.
+meme attached. Test from the CLI with `--image meme.jpg`. Jev is text only: with that endpoint selected the toggle is
+disabled and the content script leaves the images alone.
 
 ## Local-model gotchas
 
@@ -186,6 +208,7 @@ meme attached. Test from the CLI with `--image meme.jpg`.
 ## Limits
 
 - A 9B model's rating is a judgement call, not a calibrated probability. Ratings are 0–3 ordinals mapped to 5 / 35 / 65 / 93 %.
+  Jev returns calibrated probabilities instead, so the "show intent at ≥" threshold means what it says there.
 - Text only. Manipulation carried by an image or video is invisible.
 - Replies are judged without their parent post. Sarcasm and in-jokes produce false positives.
 - Site DOMs change. If a site stops getting badges, its adapter in `content.js` needs a selector update.

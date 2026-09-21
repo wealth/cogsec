@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "cogsec",
   "version": "0.1.0",
-  "description": "Lists what each post in your feed is trying to make you feel, believe, or do. Runs on any OpenAI-compatible model endpoint, local (LM Studio, Ollama, llama.cpp) or hosted.",
+  "description": "Lists what each post in your feed is trying to make you feel, believe, or do. Runs on a local model, a hosted API, or Jev.",
   "permissions": [
     "storage",
     "activeTab",

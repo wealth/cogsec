@@ -2,7 +2,7 @@
 import { DEFAULT_BASE_URL } from './provider.js';
 
 export const DEFAULTS = {
-  baseUrl: DEFAULT_BASE_URL,   // any OpenAI-compatible /v1 endpoint, local or hosted
+  baseUrl: DEFAULT_BASE_URL,   // any OpenAI-compatible /v1 endpoint, local or hosted, or Jev's /v1
   apiKey: '',                  // optional; required by hosted APIs (Cerebras, Groq, OpenAI, ...)
   model: '',                   // empty = first loaded model on a local server, else first listed
   threshold: 0.6, dimHeavy: false, paused: false,

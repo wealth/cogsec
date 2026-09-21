@@ -1,5 +1,5 @@
 import { INTENTS, LEVEL_LABELS } from './taxonomy.js';
-import { listModels, PRESETS, isLocalUrl } from './provider.js';
+import { listModels, PRESETS, isLocalUrl, isSystemOne } from './provider.js';
 import { DEFAULTS, loadSettings } from './settings.js';
 
 const $ = (id) => document.getElementById(id);
@@ -42,9 +42,21 @@ applyLang();
 for (const [key, p] of Object.entries(PRESETS)) {
   const b = document.createElement('button');
   b.className = 'preset'; b.textContent = p.label; b.title = p.url;
-  b.onclick = () => { $('baseUrl').value = p.url; if (!p.local) $('model').value = ''; refreshModels(); };
+  b.onclick = () => { $('baseUrl').value = p.url; if (!p.local) $('model').value = p.model || ''; reflectEndpoint(); refreshModels(); };
   $('presets').appendChild(b);
 }
+
+/** Jev takes typed questions on text only: no images, and the model name is one of its aliases. */
+function reflectEndpoint() {
+  const textOnly = isSystemOne($('baseUrl').value.trim());
+  const note = $('imagesNote');
+  note.dataset.i18n = textOnly ? 'imagesNoteTextOnly' : 'imagesNote';
+  note.textContent = P(note.dataset.i18n);
+  $('sendImages').disabled = textOnly;
+  $('sendImages').closest('label').style.opacity = textOnly ? .55 : 1;
+}
+$('baseUrl').addEventListener('input', reflectEndpoint);
+reflectEndpoint();
 
 for (const id of ['threshold', 'dimHeavy', 'paused', 'sendImages']) $(id).addEventListener('change', () => saveSettings(false));
 $('refreshModels').onclick = () => refreshModels();
